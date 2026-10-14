@@ -13,6 +13,7 @@
 | **Google Cloud Storage** | Google Cloud Storage | HTTPS / V4 Signed URLs | Private photo storage, media moderation staging | Secret (Server Only) | Ready for Setup |
 | **Vercel Platform** | Vercel Serverless & Edge | HTTPS / CI/CD Git Integration | Production hosting, preview deployments, Edge middleware | Secret / Token | Ready for Setup |
 | **Cloud Logging** | Google Cloud Logging / Pino | HTTPS / Structured JSON stdout | Audit logging, error tracking, security alerting | Standard Server | Ready for Setup |
+| **Stripe Payments** | Stripe API | HTTPS REST / Signed Webhooks | Subscriptions, billing, invoices, payment methods | Secret (Server Only) | Test Mode Configured |
 | **Age / IDV Service** | Synthetic / Persona / Veriff API | HTTPS REST / Webhook | 18+ Identity document verification (Phase 2) | Secret (Server Only) | Synthetic for Phase 1 |
 
 ---
