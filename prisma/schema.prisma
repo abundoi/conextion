@@ -22,6 +22,7 @@ enum UserRole {
   finance_admin
   safety_admin
   super_admin
+  analytics_viewer
 }
 
 enum AccountStatus {
@@ -172,6 +173,30 @@ enum PaymentStatus {
   refunded
 }
 
+enum TicketCategory {
+  account_access
+  billing_and_subscriptions
+  profile_and_matching
+  safety_and_reporting
+  technical_issue
+  general_inquiry
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  waiting_member
+  resolved
+  closed
+}
+
 // -----------------------------------------------------------------------------
 // Core Models
 // -----------------------------------------------------------------------------
@@ -221,6 +246,9 @@ model User {
   subscriptions         Subscription[]
   invoices              PaymentInvoice[]
   reconciliations       ReconciliationRecord[] @relation("ReconciliationActor")
+  createdTickets        SupportTicket[]      @relation("UserTickets")
+  assignedTickets       SupportTicket[]      @relation("AssignedTickets")
+  ticketMessages        TicketMessage[]
 
   @@index([firebaseUid])
   @@index([email])
@@ -746,4 +774,71 @@ model ReconciliationRecord {
   @@index([reconciledById])
   @@index([status])
   @@map("reconciliation_records")
+}
+
+model SupportTicket {
+  id                String         @id @default(uuid())
+  userId            String         @map("user_id")
+  subject           String
+  category          TicketCategory @default(general_inquiry)
+  priority          TicketPriority @default(medium)
+  status            TicketStatus   @default(open)
+  assignedToId      String?        @map("assigned_to_id")
+  escalatedToSafety Boolean        @default(false) @map("escalated_to_safety")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  resolvedAt        DateTime?      @map("resolved_at")
+
+  // Relationships
+  user              User           @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo        User?          @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages          TicketMessage[]
+
+  @@index([userId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String        @id @default(uuid())
+  ticketId   String        @map("ticket_id")
+  senderId   String        @map("sender_id")
+  content    String
+  isInternal Boolean       @default(false) @map("is_internal")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  // Relationships
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender     User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@map("ticket_messages")
+}
+
+model PolicyPage {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  content     String
+  version     String   @default("1.0.0")
+  published   Boolean  @default(true)
+  updatedById String?  @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@map("policy_pages")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedById String?  @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
 }

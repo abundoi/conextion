@@ -12,10 +12,24 @@ export interface AuthContext {
 
 // Role hierarchy / privilege mapping
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
-  member: ["profile:read_own", "profile:write_own", "discovery:read", "interaction:create"],
+  member: ["profile:read_own", "profile:write_own", "discovery:read", "interaction:create", "support:create_ticket"],
   moderator: ["profile:read_own", "profile:write_own", "moderation:review_photos", "moderation:review_reports"],
-  support_agent: ["profile:read_own", "profile:write_own", "support:read_tickets", "support:verify_appeal"],
-  finance_admin: ["profile:read_own", "profile:write_own", "finance:read_transactions", "finance:manage_plans"],
+  support_agent: [
+    "profile:read_own",
+    "profile:write_own",
+    "support:read_tickets",
+    "support:manage_tickets",
+    "support:verify_appeal",
+    "content:manage_faqs",
+  ],
+  finance_admin: [
+    "profile:read_own",
+    "profile:write_own",
+    "finance:read_transactions",
+    "finance:manage_plans",
+    "finance:reconciliation",
+    "analytics:read_metrics",
+  ],
   safety_admin: [
     "profile:read_own",
     "profile:write_own",
@@ -24,6 +38,13 @@ const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "safety:suspend_account",
     "safety:ban_account",
     "audit:read_logs",
+    "analytics:read_metrics",
+    "support:read_tickets",
+  ],
+  analytics_viewer: [
+    "profile:read_own",
+    "analytics:read_metrics",
+    "analytics:read_retention",
   ],
   super_admin: [
     "profile:read_own",
@@ -35,8 +56,15 @@ const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "audit:read_logs",
     "finance:read_transactions",
     "finance:manage_plans",
+    "finance:reconciliation",
     "admin:manage_roles",
     "admin:system_config",
+    "support:read_tickets",
+    "support:manage_tickets",
+    "content:manage_policies",
+    "content:manage_faqs",
+    "analytics:read_metrics",
+    "analytics:read_retention",
   ],
 };
 

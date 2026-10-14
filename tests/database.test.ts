@@ -108,6 +108,7 @@ describe("Database Schema & Model Integrity Suite", () => {
       "finance_admin",
       "safety_admin",
       "super_admin",
+      "analytics_viewer",
     ];
 
     expect(roleValues.sort()).toEqual(expectedRoles.sort());
