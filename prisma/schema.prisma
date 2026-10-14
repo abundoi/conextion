@@ -1,0 +1,308 @@
+// Conextion - Enterprise Dating & Relationship Platform
+// Authoritative Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+enum UserRole {
+  member
+  moderator
+  support_agent
+  finance_admin
+  safety_admin
+  super_admin
+}
+
+enum AccountStatus {
+  pending_verification
+  active
+  suspended
+  deactivated
+  banned
+}
+
+enum RelationshipIntent {
+  dating
+  long_term
+  casual
+  friendship
+  open_to_options
+}
+
+enum EligibilityCheckType {
+  age_gate_self_attest
+  id_document_scan
+  facial_age_estimation
+  third_party_kyc
+}
+
+enum CheckStatus {
+  pending
+  approved
+  rejected
+  expired
+}
+
+enum VerificationType {
+  selfie_liveness
+  government_id
+  phone_otp
+  background_check
+}
+
+enum ModerationStatus {
+  pending_review
+  approved
+  rejected
+  flagged
+}
+
+enum ConsentType {
+  terms_of_service
+  privacy_policy
+  age_certification_18plus
+  community_guidelines
+  cookies_analytics
+}
+
+// -----------------------------------------------------------------------------
+// Core Models
+// -----------------------------------------------------------------------------
+
+model User {
+  id               String        @id @default(uuid())
+  firebaseUid      String        @unique @map("firebase_uid")
+  email            String        @unique
+  phone            String?       @unique
+  role             UserRole      @default(member)
+  accountStatus    AccountStatus @default(pending_verification) @map("account_status")
+  emailVerifiedAt  DateTime?     @map("email_verified_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  // Relationships
+  profile              UserProfile?
+  preferences          UserPreference?
+  eligibilityChecks    EligibilityCheck[]
+  verificationRecords  VerificationRecord[]  @relation("UserVerifications")
+  reviewedRecords      VerificationRecord[]  @relation("ReviewerVerifications")
+  photos               ProfilePhoto[]
+  interests            UserInterest[]
+  consents             ConsentRecord[]
+  blockedUsers         Block[]               @relation("BlockerRelation")
+  blockedByUsers       Block[]               @relation("BlockedRelation")
+  auditLogs            AuditLog[]            @relation("ActorAuditLogs")
+
+  @@index([firebaseUid])
+  @@index([email])
+  @@index([role])
+  @@index([accountStatus])
+  @@map("users")
+}
+
+model UserProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique @map("user_id")
+  displayName        String             @map("display_name")
+  birthdate          DateTime
+  computedAge        Int                @map("computed_age")
+  gender             String
+  bio                String?
+  locationCity       String?            @map("location_city")
+  locationCountry    String?            @map("location_country")
+  latitude           Float?
+  longitude          Float?
+  relationshipIntent RelationshipIntent @default(dating) @map("relationship_intent")
+  isVisible          Boolean            @default(true) @map("is_visible")
+  isProfileComplete  Boolean            @default(false) @map("is_profile_complete")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  // Relationships
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([computedAge])
+  @@index([gender])
+  @@index([relationshipIntent])
+  @@index([isVisible])
+  @@map("user_profiles")
+}
+
+model UserPreference {
+  id                       String    @id @default(uuid())
+  userId                   String    @unique @map("user_id")
+  minAgePreference         Int       @default(18) @map("min_age_preference")
+  maxAgePreference         Int       @default(99) @map("max_age_preference")
+  maxDistanceKm            Int       @default(50) @map("max_distance_km")
+  interestedInGenders      String[]  @default([]) @map("interested_in_genders")
+  relationshipIntentFilter String[]  @default([]) @map("relationship_intent_filter")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  // Relationships
+  user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_preferences")
+}
+
+model EligibilityCheck {
+  id                String               @id @default(uuid())
+  userId            String               @map("user_id")
+  checkType         EligibilityCheckType @map("check_type")
+  status            CheckStatus          @default(pending)
+  passed            Boolean              @default(false)
+  verifiedAge       Int?                 @map("verified_age")
+  providerReference String?              @map("provider_reference")
+  checkMetadata     Json?                @map("check_metadata")
+  completedAt       DateTime?            @map("completed_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+
+  // Relationships
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([checkType])
+  @@index([status])
+  @@map("eligibility_checks")
+}
+
+model VerificationRecord {
+  id               String           @id @default(uuid())
+  userId           String           @map("user_id")
+  verificationType VerificationType @map("verification_type")
+  status           CheckStatus      @default(pending)
+  reviewerNotes    String?          @map("reviewer_notes")
+  reviewerId       String?          @map("reviewer_id")
+  verifiedAt       DateTime?        @map("verified_at")
+  expiresAt        DateTime?        @map("expires_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  // Relationships
+  user             User             @relation("UserVerifications", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer         User?            @relation("ReviewerVerifications", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([verificationType])
+  @@index([status])
+  @@map("verification_records")
+}
+
+model ProfilePhoto {
+  id               String           @id @default(uuid())
+  userId           String           @map("user_id")
+  storagePath      String           @map("storage_path")
+  publicUrl        String           @map("public_url")
+  displayOrder     Int              @default(0) @map("display_order")
+  isPrimary        Boolean          @default(false) @map("is_primary")
+  moderationStatus ModerationStatus @default(pending_review) @map("moderation_status")
+  moderationReason String?          @map("moderation_reason")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  // Relationships
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isPrimary])
+  @@index([moderationStatus])
+  @@map("profile_photos")
+}
+
+model Interest {
+  id        String         @id @default(uuid())
+  slug      String         @unique
+  name      String         @unique
+  category  String
+  iconName  String?        @map("icon_name")
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  // Relationships
+  users     UserInterest[]
+
+  @@index([category])
+  @@map("interests")
+}
+
+model UserInterest {
+  userId     String   @map("user_id")
+  interestId String   @map("interest_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([userId, interestId])
+  @@index([userId])
+  @@index([interestId])
+  @@map("user_interests")
+}
+
+model ConsentRecord {
+  id            String      @id @default(uuid())
+  userId        String      @map("user_id")
+  consentType   ConsentType @map("consent_type")
+  consentVersion String     @map("consent_version")
+  granted       Boolean     @default(true)
+  ipAddress     String      @map("ip_address")
+  userAgent     String      @map("user_agent")
+  agreementHash String      @map("agreement_hash")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  // Relationships
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([consentType])
+  @@map("consent_records")
+}
+
+model Block {
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  blocker   User     @relation("BlockerRelation", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlockedRelation", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?  @map("actor_id")
+  action       String
+  targetEntity String   @map("target_entity")
+  targetId     String?  @map("target_id")
+  details      Json?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  actor        User?    @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetEntity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

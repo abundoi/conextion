@@ -1,0 +1,55 @@
+name: Enterprise CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  audit-and-test:
+    name: Lint, Typecheck, and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm prisma:generate
+
+      - name: Check TypeScript Compilation
+        run: pnpm exec tsc --noEmit
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Execute Automated Test Suite
+        run: pnpm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: "file:./test.db"
+
+      - name: Verify Production Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_APP_URL: "https://conextion.preview.app"
+          NEXT_PUBLIC_FIREBASE_API_KEY: "mock_ci_key"
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "mock_ci_domain"
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: "mock_ci_project"
+          DATABASE_URL: "postgresql://postgres:mock@localhost:5432/mock"
+          SESSION_SECRET: "mock_ci_session_secret_32_characters_long"
