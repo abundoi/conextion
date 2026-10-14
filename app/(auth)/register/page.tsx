@@ -92,7 +92,7 @@ export default function RegisterPage() {
         throw new Error(sessionData.error || "Failed to initialize member account.");
       }
 
-      router.push("/profile/setup");
+      router.push("/onboarding");
     } catch (err: any) {
       setErrorMessage(err.message || "An unexpected error occurred during registration.");
     } finally {

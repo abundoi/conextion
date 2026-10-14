@@ -37,28 +37,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upsert member record in authoritative database
+    // Upsert or synchronize member record in authoritative database
     let dbUser;
     try {
-      dbUser = await prisma.user.upsert({
-        where: { firebaseUid },
-        update: {
-          email,
-          emailVerifiedAt: email_verified ? new Date() : undefined,
-        },
-        create: {
-          firebaseUid,
-          email,
-          role: "member",
-          accountStatus: "pending_verification",
-          emailVerifiedAt: email_verified ? new Date() : null,
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [{ firebaseUid }, { email }],
         },
         include: {
           profile: true,
         },
       });
-    } catch (dbError) {
-      logger.error("Failed to query or create user in database", dbError, { firebaseUid });
+
+      if (existingUser) {
+        dbUser = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            firebaseUid,
+            email,
+            emailVerifiedAt: email_verified ? (existingUser.emailVerifiedAt || new Date()) : existingUser.emailVerifiedAt,
+          },
+          include: {
+            profile: true,
+          },
+        });
+      } else {
+        dbUser = await prisma.user.create({
+          data: {
+            firebaseUid,
+            email,
+            role: "member",
+            accountStatus: "pending_verification",
+            emailVerifiedAt: email_verified ? new Date() : null,
+          },
+          include: {
+            profile: true,
+          },
+        });
+      }
+    } catch (dbError: any) {
+      logger.error("Failed to query or create user in database", dbError, {
+        firebaseUid,
+        email,
+        details: dbError?.message || String(dbError),
+      });
       return NextResponse.json(
         { error: "Database error during authentication synchronization." },
         { status: 500 }

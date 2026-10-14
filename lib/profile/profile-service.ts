@@ -4,15 +4,15 @@ import { verifyAgeEligibility } from "../auth/age-assurance";
 import { logger } from "../logging/logger";
 
 export interface ProfileInput {
-  displayName: string;
-  birthdate: string | Date;
-  gender: string;
+  displayName?: string;
+  birthdate?: string | Date;
+  gender?: string;
   bio?: string;
   locationCity?: string;
   locationCountry?: string;
   latitude?: number;
   longitude?: number;
-  relationshipIntent: RelationshipIntent;
+  relationshipIntent?: RelationshipIntent;
 }
 
 export interface PreferencesInput {
@@ -60,43 +60,53 @@ export async function getOrSeedInterests() {
 }
 
 /**
- * Creates or updates member profile with strict 18+ verification.
+ * Creates or updates member profile with strict 18+ verification and safe partial updates.
  */
 export async function saveProfile(userId: string, input: ProfileInput) {
-  const ageCheck = verifyAgeEligibility(input.birthdate);
+  const existing = await prisma.userProfile.findUnique({ where: { userId } });
+  const birthdateInput = input.birthdate || existing?.birthdate;
+  if (!birthdateInput) {
+    throw new Error("Birthdate is required.");
+  }
+
+  const ageCheck = verifyAgeEligibility(birthdateInput);
   if (!ageCheck.isEligible) {
     throw new Error(ageCheck.reason || "Eligibility check failed: Member must be 18+.");
   }
 
   const birthdate =
-    typeof input.birthdate === "string" ? new Date(input.birthdate) : input.birthdate;
+    typeof birthdateInput === "string" ? new Date(birthdateInput) : birthdateInput;
+
+  const displayName = input.displayName ?? existing?.displayName ?? "Member";
+  const gender = input.gender ?? existing?.gender ?? "other";
+  const relationshipIntent = input.relationshipIntent ?? existing?.relationshipIntent ?? "dating";
 
   return await prisma.userProfile.upsert({
     where: { userId },
     update: {
-      displayName: input.displayName,
+      displayName,
       birthdate,
       computedAge: ageCheck.computedAge,
-      gender: input.gender,
-      bio: input.bio,
-      locationCity: input.locationCity,
-      locationCountry: input.locationCountry,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      relationshipIntent: input.relationshipIntent,
+      gender,
+      bio: input.bio !== undefined ? input.bio : existing?.bio,
+      locationCity: input.locationCity !== undefined ? input.locationCity : existing?.locationCity,
+      locationCountry: input.locationCountry !== undefined ? input.locationCountry : existing?.locationCountry,
+      latitude: input.latitude !== undefined ? input.latitude : existing?.latitude,
+      longitude: input.longitude !== undefined ? input.longitude : existing?.longitude,
+      relationshipIntent,
     },
     create: {
       userId,
-      displayName: input.displayName,
+      displayName,
       birthdate,
       computedAge: ageCheck.computedAge,
-      gender: input.gender,
+      gender,
       bio: input.bio,
       locationCity: input.locationCity,
       locationCountry: input.locationCountry,
       latitude: input.latitude,
       longitude: input.longitude,
-      relationshipIntent: input.relationshipIntent,
+      relationshipIntent,
     },
   });
 }

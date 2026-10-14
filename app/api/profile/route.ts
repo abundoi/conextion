@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, verifySession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { saveProfile, savePreferences, setDiscoveryVisibility } from "@/lib/profile/profile-service";
+import {
+  saveProfile,
+  savePreferences,
+  saveInterests,
+  savePrompts,
+  setDiscoveryVisibility,
+} from "@/lib/profile/profile-service";
 import { logger } from "@/lib/logging/logger";
 
 async function getAuthUser(request: NextRequest) {
@@ -55,7 +61,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { profile, preferences } = body;
+    const { profile, preferences, interests, prompts } = body;
 
     if (profile) {
       await saveProfile(user.id, profile);
@@ -65,9 +71,23 @@ export async function PUT(request: NextRequest) {
       await savePreferences(user.id, preferences);
     }
 
+    if (interests && Array.isArray(interests)) {
+      await saveInterests(user.id, interests);
+    }
+
+    if (prompts && Array.isArray(prompts)) {
+      await savePrompts(user.id, prompts);
+    }
+
     const updated = await prisma.user.findUnique({
       where: { id: user.id },
-      include: { profile: true, preferences: true },
+      include: {
+        profile: true,
+        preferences: true,
+        photos: { orderBy: { displayOrder: "asc" } },
+        interests: { include: { interest: true } },
+        prompts: { orderBy: { order: "asc" } },
+      },
     });
 
     return NextResponse.json({ success: true, user: updated }, { status: 200 });
