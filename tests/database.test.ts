@@ -21,11 +21,23 @@ describe("Database Schema & Model Integrity Suite", () => {
       "Match",
       "UserPrompt",
       "Report",
+      "Conversation",
+      "Message",
+      "Notification",
+      "NotificationPreference",
     ];
 
     for (const model of requiredModels) {
       expect(models).toContain(model);
     }
+  });
+
+  it("verifies Message model has unique constraint on clientMessageId for idempotency", () => {
+    const messageModel = Prisma.dmmf.datamodel.models.find((m) => m.name === "Message");
+    expect(messageModel).toBeDefined();
+
+    const clientMsgIdField = messageModel!.fields.find((f) => f.name === "clientMessageId");
+    expect(clientMsgIdField?.isUnique).toBe(true);
   });
 
   it("verifies Match model has composite unique constraint on [user1Id, user2Id]", () => {

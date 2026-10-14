@@ -103,6 +103,21 @@ enum ReportStatus {
   actioned
 }
 
+enum MessageStatus {
+  sent
+  delivered
+  read
+}
+
+enum NotificationType {
+  new_match
+  new_message
+  security_alert
+  verification_update
+  safety_update
+  system
+}
+
 // -----------------------------------------------------------------------------
 // Core Models
 // -----------------------------------------------------------------------------
@@ -139,6 +154,9 @@ model User {
   prompts               UserPrompt[]
   reportsFiled          Report[]             @relation("ReporterRelation")
   reportsReceived       Report[]             @relation("ReportedRelation")
+  sentMessages          Message[]            @relation("SentMessages")
+  notifications         Notification[]
+  notificationPref      NotificationPreference?
 
   @@index([firebaseUid])
   @@index([email])
@@ -374,6 +392,7 @@ model Match {
   user1         User        @relation("User1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
   user2         User        @relation("User2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
   unmatchedBy   User?       @relation("UnmatchedByRelation", fields: [unmatchedById], references: [id], onDelete: SetNull)
+  conversation  Conversation?
 
   @@unique([user1Id, user2Id])
   @@index([user1Id])
@@ -416,4 +435,76 @@ model Report {
   @@index([reportedId])
   @@index([status])
   @@map("reports")
+}
+
+model Conversation {
+  id            String    @id @default(uuid())
+  matchId       String    @unique @map("match_id")
+  lastMessageAt DateTime? @map("last_message_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relationships
+  match         Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  messages      Message[]
+
+  @@index([matchId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id              String        @id @default(uuid())
+  conversationId  String        @map("conversation_id")
+  senderId        String        @map("sender_id")
+  content         String
+  clientMessageId String?       @unique @map("client_message_id")
+  status          MessageStatus @default(sent)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  readAt          DateTime?     @map("read_at")
+
+  // Relationships
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User          @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  preview   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  // Relationships
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  emailMatches   Boolean  @default(true) @map("email_matches")
+  emailMessages  Boolean  @default(false) @map("email_messages")
+  inAppMatches   Boolean  @default(true) @map("in_app_matches")
+  inAppMessages  Boolean  @default(true) @map("in_app_messages")
+  securityAlerts Boolean  @default(true) @map("security_alerts")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notification_preferences")
 }
