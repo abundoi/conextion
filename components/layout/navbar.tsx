@@ -19,11 +19,30 @@ export function Navbar() {
 
         <nav className="flex items-center space-x-4">
           <Link
+            href="/discovery"
+            className="flex items-center space-x-1.5 text-xs font-medium text-surface-300 hover:text-white transition-colors"
+          >
+            <span>Discover</span>
+          </Link>
+          <Link
+            href="/matches"
+            className="flex items-center space-x-1.5 text-xs font-medium text-surface-300 hover:text-white transition-colors"
+          >
+            <span>Matches</span>
+          </Link>
+          <Link
+            href="/profile"
+            className="hidden sm:flex items-center space-x-1.5 text-xs font-medium text-surface-300 hover:text-white transition-colors"
+          >
+            <User className="h-4 w-4" />
+            <span>Profile</span>
+          </Link>
+          <Link
             href="/safety"
-            className="hidden sm:flex items-center space-x-1.5 text-xs font-medium text-surface-400 hover:text-white transition-colors"
+            className="hidden md:flex items-center space-x-1.5 text-xs font-medium text-surface-400 hover:text-white transition-colors"
           >
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span>Safety & Trust</span>
+            <span>Safety</span>
           </Link>
           <Link
             href="/login"

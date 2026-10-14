@@ -17,11 +17,31 @@ describe("Database Schema & Model Integrity Suite", () => {
       "ConsentRecord",
       "Block",
       "AuditLog",
+      "Interaction",
+      "Match",
+      "UserPrompt",
+      "Report",
     ];
 
     for (const model of requiredModels) {
       expect(models).toContain(model);
     }
+  });
+
+  it("verifies Match model has composite unique constraint on [user1Id, user2Id]", () => {
+    const matchModel = Prisma.dmmf.datamodel.models.find((m) => m.name === "Match");
+    expect(matchModel).toBeDefined();
+
+    const uniqueConstraints = matchModel!.uniqueFields;
+    expect(uniqueConstraints).toContainEqual(["user1Id", "user2Id"]);
+  });
+
+  it("verifies Interaction model has unique constraint on [actorId, targetId]", () => {
+    const interactionModel = Prisma.dmmf.datamodel.models.find((m) => m.name === "Interaction");
+    expect(interactionModel).toBeDefined();
+
+    const uniqueConstraints = interactionModel!.uniqueFields;
+    expect(uniqueConstraints).toContainEqual(["actorId", "targetId"]);
   });
 
   it("verifies User model has required unique constraints and indexes", () => {

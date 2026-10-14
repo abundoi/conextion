@@ -76,6 +76,33 @@ enum ConsentType {
   cookies_analytics
 }
 
+enum InteractionType {
+  like
+  pass
+  compliment
+}
+
+enum MatchStatus {
+  active
+  unmatched
+}
+
+enum ReportCategory {
+  underage_suspicion
+  harassment
+  inappropriate_content
+  spam_or_scam
+  impersonation
+  safety_concern
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  dismissed
+  actioned
+}
+
 // -----------------------------------------------------------------------------
 // Core Models
 // -----------------------------------------------------------------------------
@@ -104,6 +131,14 @@ model User {
   blockedUsers         Block[]               @relation("BlockerRelation")
   blockedByUsers       Block[]               @relation("BlockedRelation")
   auditLogs            AuditLog[]            @relation("ActorAuditLogs")
+  initiatedInteractions Interaction[]        @relation("ActorInteractions")
+  receivedInteractions  Interaction[]        @relation("TargetInteractions")
+  matchesAsUser1        Match[]              @relation("User1Matches")
+  matchesAsUser2        Match[]              @relation("User2Matches")
+  unmatchedOthers       Match[]              @relation("UnmatchedByRelation")
+  prompts               UserPrompt[]
+  reportsFiled          Report[]             @relation("ReporterRelation")
+  reportsReceived       Report[]             @relation("ReportedRelation")
 
   @@index([firebaseUid])
   @@index([email])
@@ -305,4 +340,80 @@ model AuditLog {
   @@index([targetEntity])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model Interaction {
+  id        String          @id @default(uuid())
+  actorId   String          @map("actor_id")
+  targetId  String          @map("target_id")
+  type      InteractionType
+  comment   String?
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  // Relationships
+  actor     User            @relation("ActorInteractions", fields: [actorId], references: [id], onDelete: Cascade)
+  target    User            @relation("TargetInteractions", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([actorId, targetId])
+  @@index([actorId])
+  @@index([targetId])
+  @@index([type])
+  @@map("interactions")
+}
+
+model Match {
+  id            String      @id @default(uuid())
+  user1Id       String      @map("user1_id")
+  user2Id       String      @map("user2_id")
+  status        MatchStatus @default(active)
+  matchedAt     DateTime    @default(now()) @map("matched_at")
+  unmatchedAt   DateTime?   @map("unmatched_at")
+  unmatchedById String?     @map("unmatched_by_id")
+
+  // Relationships
+  user1         User        @relation("User1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2         User        @relation("User2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
+  unmatchedBy   User?       @relation("UnmatchedByRelation", fields: [unmatchedById], references: [id], onDelete: SetNull)
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@index([status])
+  @@map("matches")
+}
+
+model UserPrompt {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  promptText String   @map("prompt_text")
+  answer     String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_prompts")
+}
+
+model Report {
+  id         String         @id @default(uuid())
+  reporterId String         @map("reporter_id")
+  reportedId String         @map("reported_id")
+  category   ReportCategory
+  details    String?
+  status     ReportStatus   @default(pending)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  // Relationships
+  reporter   User           @relation("ReporterRelation", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported   User           @relation("ReportedRelation", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+  @@map("reports")
 }
