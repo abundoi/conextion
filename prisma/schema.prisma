@@ -118,6 +118,31 @@ enum NotificationType {
   system
 }
 
+enum CasePriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum AppealStatus {
+  pending
+  approved
+  rejected
+}
+
+enum PrivacyRequestType {
+  export
+  delete
+}
+
+enum PrivacyRequestStatus {
+  pending
+  processing
+  completed
+  cancelled
+}
+
 // -----------------------------------------------------------------------------
 // Core Models
 // -----------------------------------------------------------------------------
@@ -157,6 +182,13 @@ model User {
   sentMessages          Message[]            @relation("SentMessages")
   notifications         Notification[]
   notificationPref      NotificationPreference?
+  reportedCasesFiled    ModerationCase[]     @relation("CaseReporter")
+  reportedCasesAgainst   ModerationCase[]    @relation("CaseReported")
+  assignedCases         ModerationCase[]     @relation("AssignedCases")
+  caseNotes             CaseNote[]
+  appeals               Appeal[]             @relation("UserAppeals")
+  reviewedAppeals       Appeal[]             @relation("ReviewerAppeals")
+  privacyRequests       PrivacyDataRequest[]
 
   @@index([firebaseUid])
   @@index([email])
@@ -507,4 +539,90 @@ model NotificationPreference {
 
   @@index([userId])
   @@map("notification_preferences")
+}
+
+model ModerationCase {
+  id           String         @id @default(uuid())
+  reporterId   String         @map("reporter_id")
+  reportedId   String         @map("reported_id")
+  category     ReportCategory
+  priority     CasePriority   @default(medium)
+  status       ReportStatus   @default(pending)
+  details      String?
+  evidence     Json?
+  assignedToId String?        @map("assigned_to_id")
+  resolution   String?
+  resolvedAt   DateTime?      @map("resolved_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  // Relationships
+  reporter     User           @relation("CaseReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported     User           @relation("CaseReported", fields: [reportedId], references: [id], onDelete: Cascade)
+  assignedTo   User?          @relation("AssignedCases", fields: [assignedToId], references: [id], onDelete: SetNull)
+  notes        CaseNote[]
+  appeals      Appeal[]
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@map("moderation_cases")
+}
+
+model CaseNote {
+  id        String         @id @default(uuid())
+  caseId    String         @map("case_id")
+  authorId  String         @map("author_id")
+  note      String
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  // Relationships
+  case      ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author    User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("case_notes")
+}
+
+model Appeal {
+  id            String          @id @default(uuid())
+  userId        String          @map("user_id")
+  caseId        String?         @map("case_id")
+  reason        String
+  status        AppealStatus    @default(pending)
+  reviewerId    String?         @map("reviewer_id")
+  decisionNotes String?         @map("decision_notes")
+  reviewedAt    DateTime?       @map("reviewed_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  // Relationships
+  user          User            @relation("UserAppeals", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer      User?           @relation("ReviewerAppeals", fields: [reviewerId], references: [id], onDelete: SetNull)
+  case          ModerationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@map("appeals")
+}
+
+model PrivacyDataRequest {
+  id               String               @id @default(uuid())
+  userId           String               @map("user_id")
+  type             PrivacyRequestType
+  status           PrivacyRequestStatus @default(pending)
+  requestedAt      DateTime             @default(now()) @map("requested_at")
+  completedAt      DateTime?            @map("completed_at")
+  scheduledPurgeAt DateTime?            @map("scheduled_purge_at")
+  payload          Json?
+
+  // Relationships
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@map("privacy_data_requests")
 }

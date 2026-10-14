@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, verifySession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { reportMember } from "@/lib/matching/interactions";
+import { createModerationCase } from "@/lib/moderation/moderation-service";
 import { ReportCategory } from "@prisma/client";
 import { logger } from "@/lib/logging/logger";
 
@@ -44,8 +45,20 @@ export async function POST(request: NextRequest) {
       details
     );
 
+    const modCase = await createModerationCase({
+      reporterId: user.id,
+      reportedId,
+      category: category as ReportCategory,
+      details,
+    });
+
     return NextResponse.json(
-      { success: true, message: "Safety report received and queued for review.", reportId },
+      {
+        success: true,
+        message: "Safety report received and queued for review.",
+        reportId,
+        caseId: modCase.id,
+      },
       { status: 201 }
     );
   } catch (error: any) {
