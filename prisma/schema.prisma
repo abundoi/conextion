@@ -283,6 +283,7 @@ model UserProfile {
   @@index([gender])
   @@index([relationshipIntent])
   @@index([isVisible])
+  @@index([isVisible, computedAge, gender])
   @@map("user_profiles")
 }
 
@@ -468,6 +469,7 @@ model Interaction {
   @@index([actorId])
   @@index([targetId])
   @@index([type])
+  @@index([actorId, createdAt])
   @@map("interactions")
 }
 
@@ -562,6 +564,7 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([conversationId, createdAt])
   @@map("messages")
 }
 
@@ -628,6 +631,7 @@ model ModerationCase {
   @@index([assignedToId])
   @@index([status])
   @@index([priority])
+  @@index([status, priority, createdAt])
   @@map("moderation_cases")
 }
 
@@ -798,6 +802,7 @@ model SupportTicket {
   @@index([assignedToId])
   @@index([status])
   @@index([priority])
+  @@index([status, priority, createdAt])
   @@map("support_tickets")
 }
 
