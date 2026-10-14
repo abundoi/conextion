@@ -48,7 +48,8 @@ function LoginForm() {
 
       const sessionData = await sessionRes.json();
       if (!sessionRes.ok) {
-        throw new Error(sessionData.error || "Failed to establish secure member session.");
+        const detail = sessionData.details ? `: ${sessionData.details}` : "";
+        throw new Error((sessionData.error || "Failed to establish secure member session.") + detail);
       }
 
       router.push(redirectTarget);

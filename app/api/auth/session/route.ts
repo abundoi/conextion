@@ -82,7 +82,11 @@ export async function POST(request: NextRequest) {
         details: dbError?.message || String(dbError),
       });
       return NextResponse.json(
-        { error: "Database error during authentication synchronization." },
+        {
+          error: "Database error during authentication synchronization.",
+          code: dbError?.code || "DB_SYNC_ERROR",
+          details: dbError?.message || String(dbError),
+        },
         { status: 500 }
       );
     }

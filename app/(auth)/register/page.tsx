@@ -89,7 +89,8 @@ export default function RegisterPage() {
 
       const sessionData = await sessionRes.json();
       if (!sessionRes.ok) {
-        throw new Error(sessionData.error || "Failed to initialize member account.");
+        const detail = sessionData.details ? `: ${sessionData.details}` : "";
+        throw new Error((sessionData.error || "Failed to initialize member account.") + detail);
       }
 
       router.push("/onboarding");
