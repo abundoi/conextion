@@ -143,6 +143,35 @@ enum PrivacyRequestStatus {
   cancelled
 }
 
+enum SubscriptionPlanTier {
+  free
+  plus
+  premium
+}
+
+enum SubscriptionBillingInterval {
+  month
+  year
+}
+
+enum SubscriptionStatus {
+  incomplete
+  incomplete_expired
+  trialing
+  active
+  past_due
+  canceled
+  unpaid
+  paused
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
 // -----------------------------------------------------------------------------
 // Core Models
 // -----------------------------------------------------------------------------
@@ -189,6 +218,9 @@ model User {
   appeals               Appeal[]             @relation("UserAppeals")
   reviewedAppeals       Appeal[]             @relation("ReviewerAppeals")
   privacyRequests       PrivacyDataRequest[]
+  subscriptions         Subscription[]
+  invoices              PaymentInvoice[]
+  reconciliations       ReconciliationRecord[] @relation("ReconciliationActor")
 
   @@index([firebaseUid])
   @@index([email])
@@ -625,4 +657,93 @@ model PrivacyDataRequest {
   @@index([type])
   @@index([status])
   @@map("privacy_data_requests")
+}
+
+model Subscription {
+  id                     String                      @id @default(uuid())
+  userId                 String                      @map("user_id")
+  planTier               SubscriptionPlanTier        @default(free) @map("plan_tier")
+  status                 SubscriptionStatus          @default(active)
+  provider               String                      @default("stripe")
+  providerCustomerId     String?                     @map("provider_customer_id")
+  providerSubscriptionId String?                     @unique @map("provider_subscription_id")
+  providerPriceId        String?                     @map("provider_price_id")
+  billingInterval        SubscriptionBillingInterval? @map("billing_interval")
+  currentPeriodStart     DateTime?                   @map("current_period_start")
+  currentPeriodEnd       DateTime?                   @map("current_period_end")
+  cancelAtPeriodEnd      Boolean                     @default(false) @map("cancel_at_period_end")
+  canceledAt             DateTime?                   @map("canceled_at")
+  endedAt                DateTime?                   @map("ended_at")
+  createdAt              DateTime                    @default(now()) @map("created_at")
+  updatedAt              DateTime                    @updatedAt @map("updated_at")
+
+  // Relationships
+  user                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices               PaymentInvoice[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([planTier])
+  @@index([providerCustomerId])
+  @@map("subscriptions")
+}
+
+model PaymentInvoice {
+  id                      String         @id @default(uuid())
+  userId                  String         @map("user_id")
+  subscriptionId          String?        @map("subscription_id")
+  providerInvoiceId       String?        @unique @map("provider_invoice_id")
+  providerPaymentIntentId String?        @map("provider_payment_intent_id")
+  amountCents             Int            @map("amount_cents")
+  currency                String         @default("usd")
+  status                  PaymentStatus  @default(pending)
+  receiptUrl              String?        @map("receipt_url")
+  hostedInvoiceUrl        String?        @map("hosted_invoice_url")
+  billingReason           String?        @map("billing_reason")
+  refundedAmountCents     Int            @default(0) @map("refunded_amount_cents")
+  refundReason            String?        @map("refund_reason")
+  createdAt               DateTime       @default(now()) @map("created_at")
+
+  // Relationships
+  user                    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription            Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@map("payment_invoices")
+}
+
+model WebhookEvent {
+  id              String    @id @default(uuid())
+  providerEventId String    @unique @map("provider_event_id")
+  provider        String    @default("stripe")
+  eventType       String    @map("event_type")
+  payload         Json
+  processed       Boolean   @default(false)
+  error           String?
+  processedAt     DateTime? @map("processed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([providerEventId])
+  @@index([eventType])
+  @@index([processed])
+  @@map("webhook_events")
+}
+
+model ReconciliationRecord {
+  id              String    @id @default(uuid())
+  reconciledById  String?   @map("reconciled_by_id")
+  totalChecked    Int       @map("total_checked")
+  mismatchesFound Int       @map("mismatches_found")
+  details         Json
+  status          String    @default("matched")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relationships
+  reconciledBy    User?     @relation("ReconciliationActor", fields: [reconciledById], references: [id], onDelete: SetNull)
+
+  @@index([reconciledById])
+  @@index([status])
+  @@map("reconciliation_records")
 }
